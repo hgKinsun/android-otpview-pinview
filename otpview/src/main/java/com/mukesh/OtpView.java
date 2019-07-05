@@ -46,6 +46,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
+import java.util.Arrays;
 
 public class OtpView extends AppCompatEditText {
 
@@ -90,7 +91,9 @@ public class OtpView extends AppCompatEditText {
   private boolean hideLineWhenFilled;
   private boolean rtlTextDirection;
   private String maskingChar;
+  private int maskingDelay;
   private OnOtpCompletionListener onOtpCompletionListener;
+  private Boolean[] otpViewItemCountMasked;
 
   public OtpView(Context context) {
     this(context, null);
@@ -129,6 +132,10 @@ public class OtpView extends AppCompatEditText {
     hideLineWhenFilled = typedArray.getBoolean(R.styleable.OtpView_hideLineWhenFilled, false);
     rtlTextDirection = typedArray.getBoolean(R.styleable.OtpView_rtlTextDirection, false);
     maskingChar = typedArray.getString(R.styleable.OtpView_maskingChar);
+    maskingDelay = typedArray.getInt(R.styleable.OtpView_maskingDelay, 0);
+    otpViewItemCountMasked = new Boolean[otpViewItemCount];
+    Arrays.fill(otpViewItemCountMasked, Boolean.FALSE);
+
     typedArray.recycle();
     if (lineColor != null) {
       cursorLineColor = lineColor.getDefaultColor();
@@ -218,6 +225,13 @@ public class OtpView extends AppCompatEditText {
 
   @Override
   protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
+    final boolean isAdd = lengthAfter - lengthBefore > 0;
+
+    // Reset text has masked condition
+    if(lengthBefore > lengthAfter) {
+      otpViewItemCountMasked[text.length()] = false;
+    }
+
     if (start != text.length()) {
       moveSelectionToEnd();
     }
@@ -226,7 +240,6 @@ public class OtpView extends AppCompatEditText {
     }
     makeBlink();
     if (isAnimationEnable) {
-      final boolean isAdd = lengthAfter - lengthBefore > 0;
       if (isAdd && defaultAddAnimator != null) {
         defaultAddAnimator.end();
         defaultAddAnimator.start();
@@ -354,11 +367,41 @@ public class OtpView extends AppCompatEditText {
     if (maskingChar != null &&
         (isNumberInputType(getInputType()) ||
             isPasswordInputType(getInputType()))) {
-      drawMaskingText(canvas, i, Character.toString(maskingChar.charAt(0)));
+      if(maskingDelay > 0) {
+        drawMaskingWithDelay(canvas, i, maskingDelay);
+      } else {
+        drawMaskingText(canvas, i, Character.toString(maskingChar.charAt(0)));
+      }
     } else if (isPasswordInputType(getInputType())) {
       drawCircle(canvas, i);
     } else {
       drawText(canvas, i);
+    }
+  }
+
+  private void drawMaskingWithDelay(Canvas canvas, int i, int maskingDelay) {
+    final int index = i;
+
+    Runnable setMaskingForIndex = new Runnable() {
+      @Override public void run() {
+        otpViewItemCountMasked[index] = true;
+        invalidate();
+      }
+    };
+
+    if(getText() != null) {
+      if (getText().length() - index > 1) {
+        removeCallbacks(setMaskingForIndex);
+        otpViewItemCountMasked[index] = true;
+        invalidate();
+      }
+    }
+
+    if(otpViewItemCountMasked[i]) {
+      drawMaskingText(canvas, i, Character.toString(maskingChar.charAt(0)));
+    } else {
+      drawText(canvas, i);
+      postDelayed(setMaskingForIndex, maskingDelay);
     }
   }
 

@@ -41,5 +41,6 @@
     <attr format="boolean" name="state_filled"/>
     <attr format="boolean" name="rtlTextDirection"/>
     <attr format="string" name="maskingChar"/>
+    <attr format="integer" name="maskingDelay"/>
   </declare-styleable>
 </resources>
